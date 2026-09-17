@@ -300,6 +300,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with SingleTicker
   Widget build(BuildContext context) {
     final groupsProv = context.watch<GroupsProvider>();
     final group = groupsProv.currentGroup;
+    final currentUserId = context.read<AuthProvider>().currentUser?.id;
     final currencyFormat = NumberFormat.currency(symbol: '\$');
 
     return Scaffold(
@@ -356,6 +357,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with SingleTicker
                             final exp = groupsProv.expenses[i];
                             final dateStr = DateFormat('MMM d, yyyy').format(exp.createdAt);
                             final isSettlement = exp.description.toLowerCase().contains('settlement') || exp.description.toLowerCase().contains('payment');
+                            final matchingShares = exp.splits.where((split) => split.userId == currentUserId);
+                            final myShare = matchingShares.isEmpty ? null : matchingShares.first;
+                            final paidByMe = exp.paidById == currentUserId;
+                            final shareText = myShare == null
+                              ? null
+                              : paidByMe
+                                ? 'You paid ${currencyFormat.format(exp.amount)} - your share ${currencyFormat.format(myShare.amountOwed)}'
+                                : 'Your share: ${currencyFormat.format(myShare.amountOwed)}';
 
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -379,7 +388,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with SingleTicker
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                 ),
                                 subtitle: Text(
-                                  'Paid by ${exp.paidBy?.name ?? "Someone"} â€¢ $dateStr',
+                                  'Paid by ${exp.paidBy?.name ?? "Someone"} - $dateStr${shareText == null ? '' : '\n$shareText'}',
                                   style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                                 ),
                                 trailing: Text(

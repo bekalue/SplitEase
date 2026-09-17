@@ -56,22 +56,25 @@ class GroupsProvider extends ChangeNotifier {
 
   Future<void> loadGroupDetails(String groupId) async {
     _isDetailLoading = true;
+    _error = null;
     notifyListeners();
     try {
-      final results = await Future.wait([
-        apiService.getGroup(groupId),
-        apiService.getExpenses(groupId),
-        apiService.getBalances(groupId),
-      ]);
-      _currentGroup = results[0] as Group;
-      _expenses = results[1] as List<Expense>;
-      _balances = results[2] as BalancesResponse;
+      _currentGroup = await apiService.getGroup(groupId);
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
-    } finally {
-      _isDetailLoading = false;
-      notifyListeners();
     }
+    try {
+      _expenses = await apiService.getExpenses(groupId);
+    } catch (e) {
+      _error ??= e.toString().replaceAll('Exception: ', '');
+    }
+    try {
+      _balances = await apiService.getBalances(groupId);
+    } catch (e) {
+      _error ??= e.toString().replaceAll('Exception: ', '');
+    }
+    _isDetailLoading = false;
+    notifyListeners();
   }
 
   Future<bool> addMember(String groupId, String email) async {
@@ -95,7 +98,7 @@ class GroupsProvider extends ChangeNotifier {
     List<Map<String, dynamic>>? splits,
   }) async {
     try {
-      await apiService.createExpense(
+      final createdExpense = await apiService.createExpense(
         groupId: groupId,
         description: description,
         amount: amount,
@@ -103,6 +106,11 @@ class GroupsProvider extends ChangeNotifier {
         splitAmongUserIds: splitAmongUserIds,
         splits: splits,
       );
+      _expenses = [
+        createdExpense,
+        ..._expenses.where((expense) => expense.id != createdExpense.id),
+      ];
+      notifyListeners();
       await loadGroupDetails(groupId);
       return true;
     } catch (e) {

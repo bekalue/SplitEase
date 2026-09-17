@@ -45,21 +45,16 @@ export default function GroupDetailPage() {
 
   const fetchGroupData = useCallback(async () => {
     if (!groupId) return;
-    try {
-      const [gData, expData, balData] = await Promise.all([
-        api.getGroup(groupId),
-        api.getExpenses(groupId),
-        api.getBalances(groupId),
-      ]);
-      setGroup(gData);
-      setExpenses(expData);
-      setBalances(balData);
-    } catch {
-      // Group might not exist or user not a member
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    const [groupResult, expenseResult, balanceResult] = await Promise.allSettled([
+      api.getGroup(groupId),
+      api.getExpenses(groupId),
+      api.getBalances(groupId),
+    ]);
+    if (groupResult.status === 'fulfilled') setGroup(groupResult.value);
+    if (expenseResult.status === 'fulfilled') setExpenses(expenseResult.value);
+    if (balanceResult.status === 'fulfilled') setBalances(balanceResult.value);
+    setLoading(false);
+    setRefreshing(false);
   }, [groupId]);
 
   useEffect(() => {
@@ -317,6 +312,9 @@ export default function GroupDetailPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {expenses.map((expense) => {
                 const isSettlement = expense.description.toLowerCase().includes('settlement');
+                const myShare = expense.splits.find((split) => split.userId === user?.id);
+                const myShareAmount = Number(myShare?.amountOwed ?? 0);
+                const paidByMe = expense.paidById === user?.id;
                 const date = new Date(expense.createdAt).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
@@ -367,6 +365,13 @@ export default function GroupDetailPage() {
                             <Calendar size={14} /> {date}
                           </span>
                         </div>
+                        {!isSettlement && myShareAmount > 0 && (
+                          <div style={{ color: paidByMe ? 'var(--emerald-400)' : 'var(--amber-400)', fontSize: '0.8rem', marginTop: '0.45rem', fontWeight: 600 }}>
+                            {paidByMe
+                              ? `You paid $${Number(expense.amount).toFixed(2)} · your share $${myShareAmount.toFixed(2)}`
+                              : `Your share: $${myShareAmount.toFixed(2)}`}
+                          </div>
+                        )}
                       </div>
                     </div>
 

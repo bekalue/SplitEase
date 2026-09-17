@@ -1,3 +1,8 @@
+double _parseAmount(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0.0;
+}
+
 class MemberBalance {
   final String userId;
   final String name;
@@ -13,7 +18,7 @@ class MemberBalance {
     return MemberBalance(
       userId: json['userId'] as String,
       name: json['name'] as String,
-      netBalance: (json['netBalance'] as num).toDouble(),
+      netBalance: _parseAmount(json['netBalance']),
     );
   }
 }
@@ -39,7 +44,7 @@ class Settlement {
       fromName: json['fromName'] as String,
       toUserId: json['toUserId'] as String,
       toName: json['toName'] as String,
-      amount: (json['amount'] as num).toDouble(),
+      amount: _parseAmount(json['amount']),
     );
   }
 }
@@ -62,4 +67,5 @@ class BalancesResponse {
       settlements: rawSettlements.map((s) => Settlement.fromJson(s)).toList(),
     );
   }
+
 }

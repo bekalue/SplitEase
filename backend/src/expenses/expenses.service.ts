@@ -1,4 +1,4 @@
-﻿import { Injectable, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 
@@ -8,6 +8,18 @@ export class ExpensesService {
 
   async create(groupId: string, dto: CreateExpenseDto) {
     const splits = this.resolveSplits(dto);
+    const memberIds = new Set(
+      (await this.prisma.groupMember.findMany({
+        where: { groupId },
+        select: { userId: true },
+      })).map((member) => member.userId),
+    );
+    const invalidUserIds = [dto.paidById, ...splits.map((split) => split.userId)]
+      .filter((userId, index, ids) => !memberIds.has(userId) && ids.indexOf(userId) === index);
+    if (invalidUserIds.length > 0) {
+      throw new ForbiddenException('Every payer and split participant must be a member of this group');
+    }
+
     const total = splits.reduce((sum, s) => sum + s.amountOwed, 0);
     if (Math.abs(total - dto.amount) > 0.01) {
       throw new BadRequestException(`Splits (${total.toFixed(2)}) must sum to the expense amount (${dto.amount.toFixed(2)})`);
