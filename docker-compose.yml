@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: splitease-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: splitease
+      POSTGRES_PASSWORD: splitease
+      POSTGRES_DB: splitease
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U splitease -d splitease"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: splitease-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://splitease:splitease@postgres:5432/splitease
+      JWT_SECRET: change-me-in-production
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app/backend
+
+volumes:
+  postgres_data:
