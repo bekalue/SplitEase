@@ -19,6 +19,7 @@ import {
   RefreshCw,
   ArrowRight,
   TrendingUp,
+  Search,
 } from 'lucide-react';
 
 export default function GroupDetailPage() {
@@ -33,6 +34,8 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances' | 'members'>('expenses');
+  const [expenseQuery, setExpenseQuery] = useState('');
+  const [expenseFilter, setExpenseFilter] = useState<'all' | 'mine' | 'payments'>('all');
 
   // Modals state
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -98,6 +101,21 @@ export default function GroupDetailPage() {
   // Current user's balance in this group
   const myBalance = balances?.balances.find((b) => b.userId === user?.id);
   const myNet = myBalance?.netBalance ?? 0;
+  const personalExpenses = expenses.filter((expense) => !expense.description.toLowerCase().includes('settlement'));
+  const personalPaid = personalExpenses
+    .filter((expense) => expense.paidById === user?.id)
+    .reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const personalShare = personalExpenses.reduce((sum, expense) => {
+    const share = expense.splits.find((split) => split.userId === user?.id);
+    return sum + Number(share?.amountOwed ?? 0);
+  }, 0);
+  const filteredExpenses = expenses.filter((expense) => {
+    const query = expenseQuery.trim().toLowerCase();
+    const matchesQuery = !query || expense.description.toLowerCase().includes(query) || expense.paidBy?.name.toLowerCase().includes(query);
+    const isPayment = expense.description.toLowerCase().includes('settlement') || expense.description.toLowerCase().includes('payment');
+    const isMine = expense.paidById === user?.id || expense.splits.some((split) => split.userId === user?.id);
+    return matchesQuery && (expenseFilter === 'all' || (expenseFilter === 'payments' ? isPayment : isMine && !isPayment));
+  });
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem' }}>
@@ -297,6 +315,31 @@ export default function GroupDetailPage() {
       {/* Tab 1: Expenses List */}
       {activeTab === 'expenses' && (
         <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            {[
+              ['You paid', personalPaid, 'var(--emerald-400)'],
+              ['Your share', personalShare, 'var(--amber-400)'],
+              ['Your net', myNet, myNet >= 0 ? 'var(--emerald-400)' : 'var(--rose-400)'],
+            ].map(([label, value, color]) => (
+              <div key={label as string} className="glass-card" style={{ padding: '0.9rem 1rem' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>{label}</div>
+                <div style={{ color: color as string, fontFamily: 'var(--font-mono)', fontSize: '1.15rem', fontWeight: 800, marginTop: '0.25rem' }}>
+                  ${(value as number).toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1 1 240px' }}>
+              <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)' }} />
+              <input value={expenseQuery} onChange={(event) => setExpenseQuery(event.target.value)} placeholder="Search expenses or people" className="input-field" style={{ paddingLeft: '2.2rem' }} />
+            </div>
+            {(['all', 'mine', 'payments'] as const).map((filter) => (
+              <button key={filter} onClick={() => setExpenseFilter(filter)} className={expenseFilter === filter ? 'btn btn-primary' : 'btn btn-secondary'} style={{ fontSize: '0.8rem', textTransform: 'capitalize' }}>
+                {filter === 'mine' ? 'My activity' : filter}
+              </button>
+            ))}
+          </div>
           {expenses.length === 0 ? (
             <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
               <Receipt size={40} color="var(--text-dim)" style={{ margin: '0 auto 1rem auto' }} />
@@ -308,9 +351,13 @@ export default function GroupDetailPage() {
                 <Plus size={16} /> Add First Expense
               </button>
             </div>
+          ) : filteredExpenses.length === 0 ? (
+            <div className="glass-card" style={{ textAlign: 'center', padding: '2.5rem 2rem', color: 'var(--text-muted)' }}>
+              No matching expenses found.
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {expenses.map((expense) => {
+              {filteredExpenses.map((expense) => {
                 const isSettlement = expense.description.toLowerCase().includes('settlement');
                 const myShare = expense.splits.find((split) => split.userId === user?.id);
                 const myShareAmount = Number(myShare?.amountOwed ?? 0);
