@@ -216,7 +216,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> with SingleTicker
                       splitAmongUserIds: selectedUserIds.toList(),
                     );
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(this.context).showSnackBar(
                       SnackBar(
                         content: Text(ok ? 'Expense added!' : 'Failed to add expense'),
                         backgroundColor: ok ? const Color(0xFF10B981) : Colors.red,
