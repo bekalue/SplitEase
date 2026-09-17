@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  memberships   GroupMember[]
+  paidExpenses  Expense[]      @relation("PaidBy")
+  splits        ExpenseSplit[]
+  createdAt     DateTime       @default(now())
+}
+
+model Group {
+  id        String        @id @default(uuid())
+  name      String
+  members   GroupMember[]
+  expenses  Expense[]
+  createdAt DateTime      @default(now())
+}
+
+model GroupMember {
+  id      String @id @default(uuid())
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  group   Group  @relation(fields: [groupId], references: [id])
+  groupId String
+
+  @@unique([userId, groupId])
+}
+
+model Expense {
+  id          String         @id @default(uuid())
+  group       Group          @relation(fields: [groupId], references: [id])
+  groupId     String
+  description String
+  amount      Decimal        @db.Decimal(10, 2)
+  paidBy      User           @relation("PaidBy", fields: [paidById], references: [id])
+  paidById    String
+  splits      ExpenseSplit[]
+  createdAt   DateTime       @default(now())
+}
+
+model ExpenseSplit {
+  id         String  @id @default(uuid())
+  expense    Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expenseId  String
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
+  amountOwed Decimal @db.Decimal(10, 2)
+
+  @@unique([expenseId, userId])
+}
