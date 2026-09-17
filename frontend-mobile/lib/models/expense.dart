@@ -17,9 +17,14 @@ class ExpenseSplit {
     return ExpenseSplit(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
-      amountOwed: (json['amountOwed'] as num?)?.toDouble() ?? 0.0,
+      amountOwed: _parseAmount(json['amountOwed']),
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
+  }
+
+  static double _parseAmount(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 }
 
@@ -50,7 +55,7 @@ class Expense {
       id: json['id'] as String,
       groupId: json['groupId'] as String,
       description: json['description'] as String,
-      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: _parseAmount(json['amount']),
       paidById: json['paidById'] as String,
       paidBy: json['paidBy'] != null ? User.fromJson(json['paidBy']) : null,
       splits: rawSplits.map((s) => ExpenseSplit.fromJson(s)).toList(),
@@ -58,5 +63,10 @@ class Expense {
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
     );
+  }
+
+  static double _parseAmount(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 }
